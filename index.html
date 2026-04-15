@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpendWise</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- PREMIUM FONT -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+body {
+  margin:0;
+  font-family:'Poppins', sans-serif;
+  background:linear-gradient(135deg,#1a0033,#000);
+  color:white;
+}
+
+/*  HEADER */
+.header {
+  padding:20px 15px;
+  text-align:center;
+}
+.header h1 {
+  font-size:28px;
+  font-weight:700;
+  margin:0;
+  text-shadow:0 0 10px rgba(124,77,255,0.6);
+}
+.header p {
+  font-size:13px;
+  color:#bbb;
+  margin-top:4px;
+}
+
+/* SEARCH */
+.search-bar {padding:10px;}
+.search-bar input {
+  width:100%;
+  padding:12px;
+  border-radius:12px;
+  border:none;
+  background:#111;
+  color:white;
+  font-size:14px;
+}
+
+/* GRID */
+.container {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+  padding:14px;
+}
+
+/* CARD */
+.card {
+  background:rgba(255,255,255,0.05);
+  padding:14px;
+  border-radius:14px;
+  backdrop-filter:blur(10px);
+}
+
+/* HEADINGS */
+.card h3 {
+  font-size:16px;
+  font-weight:600;
+  margin-bottom:10px;
+}
+
+/* INPUT */
+input {
+  width:100%;
+  padding:10px;
+  margin-top:6px;
+  border-radius:10px;
+  border:none;
+  background:#111;
+  color:white;
+  font-size:14px;
+}
+
+/* BUTTON */
+button {
+  width:100%;
+  padding:10px;
+  margin-top:8px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:500;
+}
+
+.green {background:#7c4dff;}
+.red {background:#ff4081;}
+.blue {background:#2979ff;}
+.gray {background:#444;}
+
+/* CATEGORIES */
+.categories {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+}
+.category {
+  background:#111;
+  padding:10px;
+  text-align:center;
+  border-radius:10px;
+  font-size:13px;
+  font-weight:500;
+  cursor:pointer;
+}
+.category.active {border:2px solid #7c4dff;}
+
+/* EXPENSE */
+.expense {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:#111;
+  padding:10px;
+  border-radius:10px;
+  margin-top:8px;
+}
+.expense-main {
+  font-size:15px;
+  font-weight:600;
+}
+.delete-btn {
+  font-size:10px;
+  padding:4px 6px;
+  background:#333;
+  border-radius:6px;
+}
+
+canvas {max-height:160px;}
+
+.progress-container {background:#333;border-radius:10px;}
+.progress-bar {
+  height:8px;
+  background:#7c4dff;
+  width:0%;
+}
+
+@media(max-width:768px){
+  .container {grid-template-columns:1fr;}
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h1>SpendWise</h1>
+  <p>Track smarter. Spend better.</p>
+</div>
+
+<div class="search-bar">
+<input id="search" placeholder="🔍 Search expenses..." oninput="renderExpenses()">
+</div>
+
+<div class="container">
+
+<div class="card">
+<h3>Income</h3>
+<input id="incomeInput" type="number">
+<button class="green" onclick="addIncome()">Add</button>
+<button class="gray" onclick="resetApp()">Reset</button>
+<p>Balance: ₹<span id="incomeDisplay">0</span></p>
+</div>
+
+<div class="card">
+<h3>Savings</h3>
+<p>₹<span id="savings">0</span></p>
+<p>Points: <span id="points">0</span></p>
+<p id="level"></p>
+<div id="badges"></div>
+</div>
+
+<div class="card">
+<h3>Categories</h3>
+<div class="categories" id="categoryGrid"></div>
+
+<div id="addCategoryBox" style="display:none;margin-top:10px;">
+<input id="newCatName" placeholder="New category name">
+<button class="blue" onclick="addCategory()">Add Category</button>
+</div>
+
+<hr>
+
+<h3>Add Expense</h3>
+<input id="amount" type="number">
+<input id="dateInput" type="date">
+<button class="red" onclick="addExpense()">Add</button>
+</div>
+
+<div class="card">
+<h3>Expenses</h3>
+<div id="list"></div>
+</div>
+
+<div class="card">
+<h3>Goal</h3>
+<input id="goalName" placeholder="Goal name">
+<input id="goalAmount" type="number">
+<button onclick="setGoal()">Set Goal</button>
+
+<div class="progress-container">
+<div class="progress-bar" id="progressBar"></div>
+</div>
+
+<p id="goalStatus"></p>
+</div>
+
+<div class="card">
+<h3>Can I afford?</h3>
+<input id="affordInput" type="number">
+<button class="blue" onclick="checkAfford()">Check</button>
+<div id="affordResult"></div>
+</div>
+
+<div class="card" style="grid-column:span 2;">
+<h3>Spending Chart</h3>
+<canvas id="chart"></canvas>
+</div>
+
+</div>
+
+<script>
+
+/* 20 DEFAULT CATEGORIES */
+const defaultCategories = [
+{name:"Food",icon:"🍔"},
+{name:"Groceries",icon:"🛒"},
+{name:"Travel",icon:"✈️"},
+{name:"Transport",icon:"🚌"},
+{name:"Shopping",icon:"🛍️"},
+{name:"Entertainment",icon:"🎬"},
+{name:"Movies",icon:"🍿"},
+{name:"Health",icon:"🏥"},
+{name:"Gym",icon:"🏋️"},
+{name:"Rent",icon:"🏠"},
+{name:"Bills",icon:"💡"},
+{name:"Electricity",icon:"🔌"},
+{name:"Internet",icon:"🌐"},
+{name:"Mobile",icon:"📱"},
+{name:"Education",icon:"📚"},
+{name:"Subscriptions",icon:"📺"},
+{name:"Investment",icon:"📈"},
+{name:"Savings",icon:"💰"},
+{name:"Gifts",icon:"🎁"},
+{name:"Others",icon:"📌"}
+];
+
+function getSafeCategories(){
+  try{
+    let data = JSON.parse(localStorage.getItem("categories"));
+    if(!data || !Array.isArray(data) || data.length === 0){
+      localStorage.setItem("categories", JSON.stringify(defaultCategories));
+      return [...defaultCategories];
+    }
+    return data;
+  }catch{
+    localStorage.setItem("categories", JSON.stringify(defaultCategories));
+    return [...defaultCategories];
+  }
+}
+
+let categories = getSafeCategories();
+let income = Number(localStorage.getItem("income"))||0;
+let expenses = JSON.parse(localStorage.getItem("expenses"))||[];
+let goal = JSON.parse(localStorage.getItem("goal"))||{};
+let points = Number(localStorage.getItem("points"))||0;
+
+let selectedCategory=null;
+let chart;
+
+function save(){
+localStorage.setItem("income",income);
+localStorage.setItem("expenses",JSON.stringify(expenses));
+localStorage.setItem("categories",JSON.stringify(categories));
+localStorage.setItem("goal",JSON.stringify(goal));
+localStorage.setItem("points",points);
+}
+
+function renderCategories(){
+let grid=document.getElementById("categoryGrid");
+grid.innerHTML="";
+
+categories.forEach(cat=>{
+let d=document.createElement("div");
+d.className="category";
+d.innerHTML=`${cat.icon}<br>${cat.name}`;
+d.onclick=()=>{
+selectedCategory=cat;
+document.querySelectorAll(".category").forEach(c=>c.classList.remove("active"));
+d.classList.add("active");
+};
+grid.appendChild(d);
+});
+
+let add=document.createElement("div");
+add.className="category";
+add.innerHTML="➕<br>Add";
+add.onclick=()=>document.getElementById("addCategoryBox").style.display="block";
+grid.appendChild(add);
+}
+
+function getIcon(name){
+name=name.toLowerCase();
+if(name.includes("food")) return "🍔";
+if(name.includes("grocery")) return "🛒";
+if(name.includes("travel")) return "✈️";
+if(name.includes("transport")) return "🚌";
+if(name.includes("shop")) return "🛍️";
+if(name.includes("movie")) return "🍿";
+if(name.includes("entertain")) return "🎬";
+if(name.includes("health")) return "🏥";
+if(name.includes("gym")) return "🏋️";
+if(name.includes("rent")) return "🏠";
+if(name.includes("bill")) return "💡";
+if(name.includes("internet")) return "🌐";
+if(name.includes("mobile")) return "📱";
+if(name.includes("education")) return "📚";
+if(name.includes("subscription")) return "📺";
+if(name.includes("invest")) return "📈";
+if(name.includes("save")) return "💰";
+if(name.includes("gift")) return "🎁";
+return "📌";
+}
+
+function addCategory(){
+let name=document.getElementById("newCatName").value.trim();
+if(!name) return alert("Enter category name");
+
+let exists = categories.some(c => c.name.toLowerCase() === name.toLowerCase());
+if(exists) return alert("Category exists");
+
+categories.push({name,icon:getIcon(name)});
+document.getElementById("newCatName").value="";
+document.getElementById("addCategoryBox").style.display="none";
+save();
+renderCategories();
+}
+
+function addIncome(){
+let val=Number(document.getElementById("incomeInput").value);
+if(!val)return;
+income+=val;
+document.getElementById("incomeInput").value="";
+save();
+updateUI();
+}
+
+function addExpense(){
+let amt=Number(document.getElementById("amount").value);
+let date=document.getElementById("dateInput").value || new Date().toISOString().split("T")[0];
+if(!amt||!selectedCategory) return alert("Select category");
+
+expenses.push({amount:amt,category:selectedCategory.name,icon:selectedCategory.icon,date});
+
+document.getElementById("amount").value="";
+document.getElementById("dateInput").value="";
+save();
+updateUI();
+}
+
+function deleteExpense(i){
+expenses.splice(i,1);
+save();
+updateUI();
+}
+
+function updateUI(){
+document.getElementById("incomeDisplay").innerText=income;
+let total=expenses.reduce((s,e)=>s+e.amount,0);
+let savings=income-total;
+document.getElementById("savings").innerText=savings;
+updateGamification(savings);
+renderExpenses();
+renderChart();
+updateGoal(savings);
+}
+
+function renderExpenses(){
+let list=document.getElementById("list");
+list.innerHTML="";
+let s=document.getElementById("search").value.toLowerCase();
+
+expenses.forEach((e,i)=>{
+if(!e.category.toLowerCase().includes(s)) return;
+let div=document.createElement("div");
+div.className="expense";
+div.innerHTML=`
+<div class="expense-main">${e.icon} ${e.category} ₹${e.amount}</div>
+<button class="delete-btn" onclick="deleteExpense(${i})">❌</button>
+`;
+list.appendChild(div);
+});
+}
+
+function renderChart(){
+let map={};
+expenses.forEach(e=>map[e.category]=(map[e.category]||0)+e.amount);
+if(chart) chart.destroy();
+chart=new Chart(document.getElementById("chart"),{
+type:"doughnut",
+data:{labels:Object.keys(map),datasets:[{data:Object.values(map)}]}
+});
+}
+
+function setGoal(){
+goal={name:goalName.value,amount:Number(goalAmount.value)};
+save();
+updateUI();
+}
+
+function updateGoal(savings){
+if(!goal.amount) return;
+let remaining=goal.amount-savings;
+progressBar.style.width=Math.min((savings/goal.amount)*100,100)+"%";
+goalStatus.innerText=remaining<=0?"🎉 Goal achieved":`₹${remaining} left`;
+}
+
+function updateGamification(savings){
+points=Math.max(0,savings);
+document.getElementById("points").innerText=points;
+
+let level="Beginner";
+if(points>1000) level="Saver";
+if(points>5000) level="Pro";
+
+document.getElementById("level").innerText=level;
+
+let badges="";
+if(points>500) badges+="🎉 Starter<br>";
+if(points>2000) badges+="💰 Saver<br>";
+
+document.getElementById("badges").innerHTML=badges;
+save();
+}
+
+function checkAfford(){
+let amt=Number(document.getElementById("affordInput").value);
+let total=expenses.reduce((s,e)=>s+e.amount,0);
+let savings=income-total;
+let result=document.getElementById("affordResult");
+
+if(!amt) return;
+
+if(amt<=savings){
+result.innerHTML="✅ Safe";
+result.style.background="#00c853";
+}else if(amt<=savings*1.5){
+result.innerHTML="⚠️ Risky";
+result.style.background="#ff9800";
+}else{
+result.innerHTML="❌ Not affordable";
+result.style.background="#ff5252";
+}
+}
+
+function resetApp(){
+if(confirm("Reset everything?")){
+localStorage.clear();
+location.reload();
+}
+}
+
+renderCategories();
+updateUI();
+
+</script>
+
+</body>
+</html>
